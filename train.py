@@ -123,7 +123,7 @@ class AugmentNoise(object):
 def checkpoint(net, epoch, name):
     save_model_path = os.path.join(opt.save_model_path, opt.log_name, systime)
     os.makedirs(save_model_path, exist_ok=True)
-    model_name = 'epoch_{}_{:03d}.pth'.format(name, epoch)
+    model_name = 'epoch_{}_{:03d}.pdparams'.format(name, epoch)
     save_model_path = os.path.join(save_model_path, model_name)
     paddle.save(net.state_dict(), save_model_path)
     print('Checkpoint saved to {}'.format(save_model_path))
@@ -423,25 +423,25 @@ for epoch in range(1, opt.n_epoch + 1):
                     ssim_result.append(cur_ssim)
 
                     # visualization
-                    if i == 0 and epoch == opt.n_snapshot:
-                        save_path = os.path.join(
-                            validation_path,
-                            "{}_{:03d}-{:03d}_clean.png".format(
-                                valid_name, idx, epoch))
-                        Image.fromarray(origin255).convert('RGB').save(
-                            save_path)
-                        save_path = os.path.join(
-                            validation_path,
-                            "{}_{:03d}-{:03d}_noisy.png".format(
-                                valid_name, idx, epoch))
-                        Image.fromarray(noisy255).convert('RGB').save(
-                            save_path)
-                    if i == 0:
-                        save_path = os.path.join(
-                            validation_path,
-                            "{}_{:03d}-{:03d}_denoised.png".format(
-                                valid_name, idx, epoch))
-                        Image.fromarray(pred255).convert('RGB').save(save_path)
+                    # if i == 0 and epoch == opt.n_snapshot:
+                    #     save_path = os.path.join(
+                    #         validation_path,
+                    #         "{}_{:03d}-{:03d}_clean.png".format(
+                    #             valid_name, idx, epoch))
+                    #     Image.fromarray(origin255).convert('RGB').save(
+                    #         save_path)
+                    #     save_path = os.path.join(
+                    #         validation_path,
+                    #         "{}_{:03d}-{:03d}_noisy.png".format(
+                    #             valid_name, idx, epoch))
+                    #     Image.fromarray(noisy255).convert('RGB').save(
+                    #         save_path)
+                    # if i == 0:
+                    #     save_path = os.path.join(
+                    #         validation_path,
+                    #         "{}_{:03d}-{:03d}_denoised.png".format(
+                    #             valid_name, idx, epoch))
+                    #     Image.fromarray(pred255).convert('RGB').save(save_path)
 
             psnr_result = np.array(psnr_result)
             avg_psnr = np.mean(psnr_result)
