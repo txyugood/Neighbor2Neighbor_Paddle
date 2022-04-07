@@ -4,8 +4,9 @@ import time
 import glob
 import datetime
 import argparse
-import numpy as np
+import random
 
+import numpy as np
 import paddle
 import paddle.nn as nn
 from paddle.io import DataLoader
@@ -41,6 +42,10 @@ systime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
 operation_seed_counter = 0
 os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpu_devices
 
+paddle.seed(1)
+np.random.seed(1)
+random.seed(1)
+
 
 def checkpoint(net, epoch, name):
     save_model_path = os.path.join(opt.save_model_path, opt.log_name, systime)
@@ -70,7 +75,6 @@ def generate_mask_pair(img):
 
     idx_pair = paddle.to_tensor(
         np.array([[0, 1], [0, 2], [1, 3], [2, 3], [1, 0], [2, 0], [3, 1], [3, 2]]).astype('int64'))
-    paddle.seed(1)
     rd_idx = paddle.randint(low=0,
                             high=8,
                             shape=(n * h // 2 * w // 2,))

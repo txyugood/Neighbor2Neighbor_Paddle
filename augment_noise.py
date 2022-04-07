@@ -32,7 +32,6 @@ class AugmentNoise(object):
             #              std=std,
             #              generator=get_generator(),
             #              out=noise)
-            paddle.seed(0)
             noise = paddle.normal(mean=0.0, std=std)
 
             return x + noise
