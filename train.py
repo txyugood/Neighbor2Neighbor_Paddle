@@ -61,15 +61,15 @@ def space_to_depth(x, block_size):
 def generate_mask_pair(img):
     # prepare masks (N x C x H/2 x W/2)
     n, c, h, w = img.shape
+
     mask1 = paddle.zeros(shape=(n * h // 2 * w // 2 * 4, ),
-                        dtype='bool')
+                        dtype='int64')
     mask2 = paddle.zeros(shape=(n * h // 2 * w // 2 * 4, ),
-                        dtype='bool')
+                        dtype='int64')
     # prepare random mask pairs
 
     idx_pair = paddle.to_tensor(
         np.array([[0, 1], [0, 2], [1, 3], [2, 3], [1, 0], [2, 0], [3, 1], [3, 2]]).astype('int64'))
-
     paddle.seed(1)
     rd_idx = paddle.randint(low=0,
                             high=8,
@@ -79,9 +79,19 @@ def generate_mask_pair(img):
                                 end=n * h // 2 * w // 2 * 4,
                                 step=4,
                                 dtype='int64').reshape([-1, 1])
+
     # get masks
-    mask1[rd_pair_idx[:, 0]] = 1
-    mask2[rd_pair_idx[:, 1]] = 1
+    rd_pair_idx1 = rd_pair_idx[:, 0]
+    rd_pair_idx2 = rd_pair_idx[:, 1]    
+    updates = paddle.ones(rd_pair_idx1.shape,dtype='int64')
+    mask1 = paddle.scatter(mask1, rd_pair_idx1, updates, overwrite=True)
+    updates = paddle.ones(rd_pair_idx2.shape,dtype='int64')
+    mask2 = paddle.scatter(mask2, rd_pair_idx2, updates, overwrite=True)
+    mask1 = paddle.cast(mask1, 'bool')
+    mask2 = paddle.cast(mask2, 'bool')
+    
+    # mask1[rd_pair_idx1] = 1
+    # mask2[rd_pair_idx2] = 1
     return mask1, mask2
 
 
@@ -200,10 +210,13 @@ TrainingLoader = DataLoader(dataset=TrainingDataset,
 Kodak_dir = os.path.join(opt.val_dirs, "Kodak")
 BSD300_dir = os.path.join(opt.val_dirs, "BSD300")
 Set14_dir = os.path.join(opt.val_dirs, "Set14")
+# valid_dict = {
+#     "Kodak": validation_kodak(Kodak_dir),
+#     "BSD300": validation_bsd300(BSD300_dir),
+#     "Set14": validation_Set14(Set14_dir)
+# }
 valid_dict = {
-    "Kodak": validation_kodak(Kodak_dir),
-    "BSD300": validation_bsd300(BSD300_dir),
-    "Set14": validation_Set14(Set14_dir)
+    "BSD300": validation_bsd300(BSD300_dir)
 }
 
 # Noise adder
@@ -239,40 +252,39 @@ for epoch in range(1, opt.n_epoch + 1):
     print("LearningRate of Epoch {} = {}".format(epoch, current_lr))
 
     network.train()
-    # for iteration, data in enumerate(TrainingLoader):
-    #     st = time.time()
-    #     clean = data[0] / 255.0
-    #     noisy = noise_adder.add_train_noise(clean)
-    #
-    #
-    #     mask1, mask2 = generate_mask_pair(noisy)
-    #     noisy_sub1 = generate_subimages(noisy, mask1)
-    #     noisy_sub2 = generate_subimages(noisy, mask2)
-    #     with paddle.no_grad():
-    #         noisy_denoised = network(noisy)
-    #     noisy_sub1_denoised = generate_subimages(noisy_denoised, mask1)
-    #     noisy_sub2_denoised = generate_subimages(noisy_denoised, mask2)
-    #
-    #     noisy_output = network(noisy_sub1)
-    #     noisy_target = noisy_sub2
-    #     Lambda = epoch / opt.n_epoch * opt.increase_ratio
-    #     diff = noisy_output - noisy_target
-    #     exp_diff = noisy_sub1_denoised - noisy_sub2_denoised
-    #
-    #     loss1 = paddle.mean(diff**2)
-    #     loss2 = Lambda * paddle.mean((diff - exp_diff)**2)
-    #     loss_all = opt.Lambda1 * loss1 + opt.Lambda2 * loss2
-    #
-    #     loss_all.backward()
-    #     optimizer.step()
-    #     network.clear_gradients()
-    #     print(
-    #         '{:04d} {:05d} Loss1={:.6f}, Lambda={}, Loss2={:.6f}, Loss_Full={:.6f}, Time={:.4f}'
-    #         .format(epoch, iteration, np.mean(loss1.item()), Lambda,
-    #                 np.mean(loss2.item()), np.mean(loss_all.item()),
-    #                 time.time() - st))
-    #
-    # lr.step()
+    for iteration, data in enumerate(TrainingLoader):
+        st = time.time()
+        clean = data[0] / 255.0
+        noisy = noise_adder.add_train_noise(clean)
+    
+        mask1, mask2 = generate_mask_pair(noisy)
+        noisy_sub1 = generate_subimages(noisy, mask1)
+        noisy_sub2 = generate_subimages(noisy, mask2)
+        with paddle.no_grad():
+            noisy_denoised = network(noisy)
+        noisy_sub1_denoised = generate_subimages(noisy_denoised, mask1)
+        noisy_sub2_denoised = generate_subimages(noisy_denoised, mask2)
+    
+        noisy_output = network(noisy_sub1)
+        noisy_target = noisy_sub2
+        Lambda = epoch / opt.n_epoch * opt.increase_ratio
+        diff = noisy_output - noisy_target
+        exp_diff = noisy_sub1_denoised - noisy_sub2_denoised
+    
+        loss1 = paddle.mean(diff**2)
+        loss2 = Lambda * paddle.mean((diff - exp_diff)**2)
+        loss_all = opt.Lambda1 * loss1 + opt.Lambda2 * loss2
+        loss_all.backward()
+        optimizer.step()
+        network.clear_gradients()
+        if iteration % 100 == 0:
+            print(
+                '{:04d} {:05d} Loss1={:.6f}, Lambda={}, Loss2={:.6f}, Loss_Full={:.6f}, Time={:.4f}'
+                .format(epoch, iteration, np.mean(loss1.item()), Lambda,
+                        np.mean(loss2.item()), np.mean(loss_all.item()),
+                        time.time() - st))
+    
+    lr.step()
 
     if epoch % opt.n_snapshot == 0 or epoch == opt.n_epoch:
         network.eval()
@@ -284,7 +296,8 @@ for epoch in range(1, opt.n_epoch + 1):
         validation_path = os.path.join(save_model_path, "validation")
         os.makedirs(validation_path, exist_ok=True)
         np.random.seed(101)
-        valid_repeat_times = {"Kodak": 10, "BSD300": 3, "Set14": 20}
+        # valid_repeat_times = {"Kodak": 10, "BSD300": 3, "Set14": 20}
+        valid_repeat_times = {"BSD300": 3}
 
         for valid_name, valid_images in valid_dict.items():
             psnr_result = []
@@ -353,6 +366,7 @@ for epoch in range(1, opt.n_epoch + 1):
             psnr_result = np.array(psnr_result)
             avg_psnr = np.mean(psnr_result)
             avg_ssim = np.mean(ssim_result)
+            print(f"[EVAL] {valid_name}: psnr:{avg_psnr} ssim:{avg_ssim}")
             log_path = os.path.join(validation_path,
                                     "A_log_{}.csv".format(valid_name))
             with open(log_path, "a") as f:

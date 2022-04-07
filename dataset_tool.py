@@ -29,8 +29,10 @@ def load_and_save(img_path):
     img.save(save_path, quality=100, subsampling=0)
 
 
-input_dir = "/Users/alex/Downloads/ILSVRC2012_img_val"
-save_dir = "/Users/alex/Downloads/Imagenet_val"
+# input_dir = "/Users/alex/Downloads/ILSVRC2012_img_val"
+# save_dir = "/Users/alex/Downloads/Imagenet_val"
+input_dir = "/home/aistudio/data/ILSVRC2012_img_val"
+save_dir = "/home/aistudio/data/Imagenet_val"
 
 images = []
 pattern = os.path.join(input_dir, '**/*')
