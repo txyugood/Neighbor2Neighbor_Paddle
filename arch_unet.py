@@ -2,32 +2,43 @@ import paddle
 import paddle.nn as nn
 from paddle.nn import initializer as init
 
+from param_init import kaiming_normal_
+
 
 def initialize_weights(module, scale=1):
     for n, m in module.named_children():
         if isinstance(m, nn.Conv2D) or isinstance(m, nn.Conv3D):
-            # initializer = init.KaimingNormal(fan_in=0)
-            import torch
-            torch.nn.init.kaiming_normal_(m.weight, a=0, mode='fan_in')
-            # initializer(m.weight)
-            m.weight.data *= scale  # for residual block
+            kaiming_normal_(m.weight, a=0, mode='fan_in')
+            data = m.weight.numpy() * scale # for residual block
+            initializer = init.Assign(value=data)
+            initializer(m.weight)
             if m.bias is not None:
-                m.bias.data.zero_()
+                initializer = init.Constant(value=0.0)
+                initializer(m.bias)
         elif isinstance(m, nn.Conv2DTranspose) or isinstance(
                 m, nn.Conv3DTranspose):
-            init.kaiming_normal_(m.weight, a=0, mode='fan_in')
-            m.weight.data *= scale  # for residual block
+            kaiming_normal_(m.weight, a=0, mode='fan_in')
+            data = m.weight.numpy() * scale # for residual block
+            initializer = init.Assign(value=data)
+            initializer(m.weight)
+            # m.weight.data *= scale
             if m.bias is not None:
-                m.bias.data.zero_()
+                initializer = init.Constant(value=0.0)
+                initializer(m.bias)
         elif isinstance(m, nn.Linear):
-            init.kaiming_normal_(m.weight, a=0, mode='fan_in')
-            m.weight.data *= scale
+            kaiming_normal_(m.weight, a=0, mode='fan_in')
+            data = m.weight.numpy() * scale # for residual block
+            initializer = init.Assign(value=data)
+            initializer(m.weight)
             if m.bias is not None:
-                m.bias.data.zero_()
+                initializer = init.Constant(value=0.0)
+                initializer(m.bias)
         elif isinstance(m, nn.BatchNorm2D) or isinstance(
                 m, nn.BatchNorm3D):
-            init.constant_(m.weight, 1)
-            init.constant_(m.bias.data, 0.0)
+            initializer = init.Constant(value=1.0)
+            initializer(m.weight)
+            initializer = init.Constant(value=0.0)
+            initializer(m.bias)
 
 
 class UpsampleCat(nn.Layer):
@@ -37,7 +48,7 @@ class UpsampleCat(nn.Layer):
         self.out_nc = out_nc
 
         self.deconv = nn.Conv2DTranspose(in_nc, out_nc, 2, 2, 0, False)
-        # initialize_weights(self, 0.1)
+        initialize_weights(self, 0.1)
 
     def forward(self, x1, x2):
         x1 = self.deconv(x1)
@@ -132,7 +143,7 @@ class UNet(nn.Layer):
         self.nin_b = nn.Conv2D(96, 96, 1, 1, 0)
 
         self.nin_c = nn.Conv2D(96, self.out_nc, 1, 1, 0)
-        initialize_weights(self.nin_c, 0.1)
+        initialize_weights(self, 0.1)
 
     def forward(self, x):
         # Encoder part
