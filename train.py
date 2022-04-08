@@ -14,6 +14,7 @@ from PIL import Image
 from arch_unet import UNet
 # from augment_noise import AugmentNoise
 from dataset import DataLoader_Imagenet_val
+from utils import load_pretrained_model
 
 # 验收标准：Gaussion 25, BSD300: PSNR: 30.79, SSIM:0.873
 
@@ -305,7 +306,7 @@ noise_adder = AugmentNoise(style=opt.noisetype)
 network = UNet(in_nc=opt.n_channel,
                out_nc=opt.n_channel,
                n_feature=opt.n_feature)
-
+load_pretrained_model(network, 'unet.pdparams')
 # about training scheme
 num_epoch = opt.n_epoch
 ratio = num_epoch / 100
@@ -330,40 +331,40 @@ for epoch in range(1, opt.n_epoch + 1):
     current_lr = lr.get_lr()
     print("LearningRate of Epoch {} = {}".format(epoch, current_lr))
 
-    network.train()
-    for iteration, data in enumerate(TrainingLoader):
-        st = time.time()
-        clean = data[0] / 255.0
-        noisy = noise_adder.add_train_noise(clean)
-    
-        mask1, mask2 = generate_mask_pair(noisy)
-        noisy_sub1 = generate_subimages(noisy, mask1)
-        noisy_sub2 = generate_subimages(noisy, mask2)
-        with paddle.no_grad():
-            noisy_denoised = network(noisy)
-        noisy_sub1_denoised = generate_subimages(noisy_denoised, mask1)
-        noisy_sub2_denoised = generate_subimages(noisy_denoised, mask2)
-    
-        noisy_output = network(noisy_sub1)
-        noisy_target = noisy_sub2
-        Lambda = epoch / opt.n_epoch * opt.increase_ratio
-        diff = noisy_output - noisy_target
-        exp_diff = noisy_sub1_denoised - noisy_sub2_denoised
-    
-        loss1 = paddle.mean(diff**2)
-        loss2 = Lambda * paddle.mean((diff - exp_diff)**2)
-        loss_all = opt.Lambda1 * loss1 + opt.Lambda2 * loss2
-        loss_all.backward()
-        optimizer.step()
-        network.clear_gradients()
-        if iteration % 100 == 0:
-            print(
-                '{:04d} {:05d} Loss1={:.6f}, Lambda={}, Loss2={:.6f}, Loss_Full={:.6f}, Time={:.4f}'
-                .format(epoch, iteration, np.mean(loss1.item()), Lambda,
-                        np.mean(loss2.item()), np.mean(loss_all.item()),
-                        time.time() - st))
-    
-    lr.step()
+    # network.train()
+    # for iteration, data in enumerate(TrainingLoader):
+    #     st = time.time()
+    #     clean = data[0] / 255.0
+    #     noisy = noise_adder.add_train_noise(clean)
+    #
+    #     mask1, mask2 = generate_mask_pair(noisy)
+    #     noisy_sub1 = generate_subimages(noisy, mask1)
+    #     noisy_sub2 = generate_subimages(noisy, mask2)
+    #     with paddle.no_grad():
+    #         noisy_denoised = network(noisy)
+    #     noisy_sub1_denoised = generate_subimages(noisy_denoised, mask1)
+    #     noisy_sub2_denoised = generate_subimages(noisy_denoised, mask2)
+    #
+    #     noisy_output = network(noisy_sub1)
+    #     noisy_target = noisy_sub2
+    #     Lambda = epoch / opt.n_epoch * opt.increase_ratio
+    #     diff = noisy_output - noisy_target
+    #     exp_diff = noisy_sub1_denoised - noisy_sub2_denoised
+    #
+    #     loss1 = paddle.mean(diff**2)
+    #     loss2 = Lambda * paddle.mean((diff - exp_diff)**2)
+    #     loss_all = opt.Lambda1 * loss1 + opt.Lambda2 * loss2
+    #     loss_all.backward()
+    #     optimizer.step()
+    #     network.clear_gradients()
+    #     if iteration % 100 == 0:
+    #         print(
+    #             '{:04d} {:05d} Loss1={:.6f}, Lambda={}, Loss2={:.6f}, Loss_Full={:.6f}, Time={:.4f}'
+    #             .format(epoch, iteration, np.mean(loss1.item()), Lambda,
+    #                     np.mean(loss2.item()), np.mean(loss_all.item()),
+    #                     time.time() - st))
+    #
+    # lr.step()
 
     if epoch % opt.n_snapshot == 0 or epoch == opt.n_epoch:
         network.eval()
