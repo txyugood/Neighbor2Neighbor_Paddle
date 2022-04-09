@@ -13,7 +13,7 @@ from PIL import Image
 
 from arch_unet import UNet
 # from augment_noise import AugmentNoise
-from dataset import DataLoader_Imagenet_val
+from dataset import DataLoader_Imagenet_val, validation_bsd300, validation_kodak, validation_Set14
 from utils import load_pretrained_model, calculate_ssim, calculate_psnr
 
 
@@ -154,40 +154,6 @@ def generate_subimages(img, mask):
         subimage[:, i:i + 1, :, :] = paddle.transpose(img_per_channel[mask].reshape([
             n, h // 2, w // 2, 1]),[0, 3, 1, 2])
     return subimage
-
-
-def validation_kodak(dataset_dir):
-    fns = glob.glob(os.path.join(dataset_dir, "*"))
-    fns.sort()
-    images = []
-    for fn in fns:
-        im = Image.open(fn)
-        im = np.array(im, dtype=np.float32)
-        images.append(im)
-    return images
-
-
-def validation_bsd300(dataset_dir):
-    fns = []
-    fns.extend(glob.glob(os.path.join(dataset_dir, "test", "*")))
-    fns.sort()
-    images = []
-    for fn in fns:
-        im = Image.open(fn)
-        im = np.array(im, dtype=np.float32)
-        images.append(im)
-    return images
-
-
-def validation_Set14(dataset_dir):
-    fns = glob.glob(os.path.join(dataset_dir, "*"))
-    fns.sort()
-    images = []
-    for fn in fns:
-        im = Image.open(fn)
-        im = np.array(im, dtype=np.float32)
-        images.append(im)
-    return images
 
 
 # Training Set
