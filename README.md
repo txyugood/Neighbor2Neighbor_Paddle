@@ -78,6 +78,24 @@ Checkpoint saved to ./results/unet_gauss25_b4e100r02/2022-04-08-23-17/epoch_mode
 ```
 达到验收指标。
 
+### 模型验证
+
+除了可以再训练过程中验证模型精度，还可以是val.py脚本加载模型验证精度，执行以下命令。
+
+```shell
+python val.py --model_path best_model.pdparams
+```
+
+输出如下：
+
+```shell
+W0409 16:05:08.099226 30040 device_context.cc:447] Please NOTE: device: 0, GPU Compute Capability: 7.0, Driver API Version: 10.1, Runtime API Version: 10.1
+W0409 16:05:08.103406 30040 device_context.cc:465] device: 0, cuDNN Version: 7.6.
+Loading pretrained model from best_model.pdparams
+There are 50/50 variables loaded into UNet.
+[EVAL] BSD300: psnr:30.910791861936413 ssim:0.8766264295802032
+```
+
 
 ### TIPC基础链条测试
 
