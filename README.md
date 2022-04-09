@@ -123,6 +123,27 @@ bash test_tipc/test_train_inference_python.sh test_tipc/configs/N2N/train_infer_
 
 ## 6.代码结构与详细说明
 
+```
+Neighbor2Neighbor_Paddle
+├── A_log_BSD300.csv  # 验证模型日志
+├── README.md  # 说明文件
+├── arch_unet.py # 模型架构
+├── best_model.pdparams # 最优模型权重
+├── dataset.py # 数据集代码
+├── dataset_tool.py # 数据集转换文件
+├── export_model.py # 模型导出代码
+├── imgs # Readme中的图片资源文件
+├── infer.py # 推理代码
+├── param_init.py # 模型参数初始化方法
+├── test_tipc # TIPC 测试
+├── train.log # 训练日志
+├── train.py # 训练脚本
+├── utils.py # 工具
+├── val.py #验证脚本
+└── validation # 验证数据集
+
+```
+
 ## 7.模型信息
 
 | 信息 | 描述 |
