@@ -69,7 +69,7 @@ class AugmentNoise(object):
         if self.style == "gauss_fix":
             std = self.params[0]
             # std = std * torch.ones((shape[0], 1, 1, 1), device=x.device)
-            std = std * paddle.ones((shape[0], 1, 1, 1))
+            std = std * paddle.ones(shape)
             # noise = torch.cuda.FloatTensor(shape, device=x.device)
             # torch.normal(mean=0.0,
             #              std=std,
@@ -79,7 +79,6 @@ class AugmentNoise(object):
             operation_seed_counter += 1
             paddle.seed(operation_seed_counter)
             noise = paddle.normal(mean=0.0, std=std)
-
             return x + noise
         # elif self.style == "gauss_range":
         #     min_std, max_std = self.params
@@ -388,7 +387,7 @@ for epoch in range(1, opt.n_epoch + 1):
                     origin255 = origin255.astype(np.uint8)
                     im = np.array(im, dtype=np.float32) / 255.0
                     noisy_im = noise_adder.add_valid_noise(im)
-                    if epoch == opt.n_snapshot:
+                    if i == 0 and idx < 5:
                         noisy255 = noisy_im.copy()
                         noisy255 = np.clip(noisy255 * 255.0 + 0.5, 0,
                                            255).astype(np.uint8)
@@ -422,7 +421,7 @@ for epoch in range(1, opt.n_epoch + 1):
                     ssim_result.append(cur_ssim)
 
                     # visualization
-                    if i == 0 and epoch == opt.n_snapshot and idx < 5:
+                    if i == 0 and idx < 5:
                         save_path = os.path.join(
                             validation_path,
                             "{}_{:03d}-{:03d}_clean.png".format(
@@ -435,7 +434,7 @@ for epoch in range(1, opt.n_epoch + 1):
                                 valid_name, idx, epoch))
                         Image.fromarray(noisy255).convert('RGB').save(
                             save_path)
-                    if i == 0 and epoch == opt.n_snapshot and idx < 5:
+                    if i == 0 and idx < 5:
                         save_path = os.path.join(
                             validation_path,
                             "{}_{:03d}-{:03d}_denoised.png".format(
