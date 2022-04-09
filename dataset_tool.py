@@ -1,8 +1,13 @@
 import os
 import glob
+import argparse
 import fnmatch
 import PIL.Image
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--input_dir", type=str, default="/home/aistudio/data/ILSVRC2012_img_val")
+parser.add_argument('--save_dir', type=str, default="/home/aistudio/data/Imagenet_val")
+opt, _ = parser.parse_known_args()
 
 def filter_image_sizes(images):
     filtered = []
@@ -31,8 +36,8 @@ def load_and_save(img_path):
 
 # input_dir = "/Users/alex/Downloads/ILSVRC2012_img_val"
 # save_dir = "/Users/alex/Downloads/Imagenet_val"
-input_dir = "/home/aistudio/data/ILSVRC2012_img_val"
-save_dir = "/home/aistudio/data/Imagenet_val"
+input_dir = opt.input_dir
+save_dir = opt.save_dir
 
 images = []
 pattern = os.path.join(input_dir, '**/*')

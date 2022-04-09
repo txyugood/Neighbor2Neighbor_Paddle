@@ -14,7 +14,8 @@ from PIL import Image
 from arch_unet import UNet
 # from augment_noise import AugmentNoise
 from dataset import DataLoader_Imagenet_val
-from utils import load_pretrained_model
+from utils import load_pretrained_model, calculate_ssim, calculate_psnr
+
 
 # 验收标准：Gaussion 25, BSD300: PSNR: 30.79, SSIM:0.873
 
@@ -31,6 +32,7 @@ parser.add_argument('--n_channel', type=int, default=3)
 parser.add_argument('--lr', type=float, default=3e-4)
 parser.add_argument('--gamma', type=float, default=0.5)
 parser.add_argument('--n_epoch', type=int, default=100)
+parser.add_argument('--log_iters', type=int, default=100)
 parser.add_argument('--n_snapshot', type=int, default=1)
 parser.add_argument('--batchsize', type=int, default=4)
 parser.add_argument('--patchsize', type=int, default=256)
@@ -68,36 +70,12 @@ class AugmentNoise(object):
         shape = x.shape
         if self.style == "gauss_fix":
             std = self.params[0]
-            # std = std * torch.ones((shape[0], 1, 1, 1), device=x.device)
             std = std * paddle.ones(shape)
-            # noise = torch.cuda.FloatTensor(shape, device=x.device)
-            # torch.normal(mean=0.0,
-            #              std=std,
-            #              generator=get_generator(),
-            #              out=noise)
             global operation_seed_counter
             operation_seed_counter += 1
             paddle.seed(operation_seed_counter)
             noise = paddle.normal(mean=0.0, std=std)
             return x + noise
-        # elif self.style == "gauss_range":
-        #     min_std, max_std = self.params
-        #     std = torch.rand(size=(shape[0], 1, 1, 1),
-        #                      device=x.device) * (max_std - min_std) + min_std
-        #     noise = torch.cuda.FloatTensor(shape, device=x.device)
-        #     torch.normal(mean=0, std=std, generator=get_generator(), out=noise)
-        #     return x + noise
-        # elif self.style == "poisson_fix":
-        #     lam = self.params[0]
-        #     lam = lam * paddle.ones((shape[0], 1, 1, 1))
-        #     noised = torch.poisson(lam * x, generator=get_generator()) / lam
-        #     return noised
-        # elif self.style == "poisson_range":
-        #     min_lam, max_lam = self.params
-        #     lam = torch.rand(size=(shape[0], 1, 1, 1),
-        #                      device=x.device) * (max_lam - min_lam) + min_lam
-        #     noised = torch.poisson(lam * x, generator=get_generator()) / lam
-        #     return noised
 
     def add_valid_noise(self, x):
         shape = x.shape
@@ -105,22 +83,10 @@ class AugmentNoise(object):
             std = self.params[0]
             return np.array(x + np.random.normal(size=shape) * std,
                             dtype=np.float32)
-        elif self.style == "gauss_range":
-            min_std, max_std = self.params
-            std = np.random.uniform(low=min_std, high=max_std, size=(1, 1, 1))
-            return np.array(x + np.random.normal(size=shape) * std,
-                            dtype=np.float32)
-        elif self.style == "poisson_fix":
-            lam = self.params[0]
-            return np.array(np.random.poisson(lam * x) / lam, dtype=np.float32)
-        elif self.style == "poisson_range":
-            min_lam, max_lam = self.params
-            lam = np.random.uniform(low=min_lam, high=max_lam, size=(1, 1, 1))
-            return np.array(np.random.poisson(lam * x) / lam, dtype=np.float32)
 
 
 def checkpoint(net, epoch, name):
-    save_model_path = os.path.join(opt.save_model_path, opt.log_name, systime)
+    save_model_path = os.path.join(opt.save_model_path, opt.log_name)
     os.makedirs(save_model_path, exist_ok=True)
     model_name = 'epoch_{}_{:03d}.pdparams'.format(name, epoch)
     save_model_path = os.path.join(save_model_path, model_name)
@@ -224,59 +190,6 @@ def validation_Set14(dataset_dir):
     return images
 
 
-def ssim(prediction, target):
-    C1 = (0.01 * 255)**2
-    C2 = (0.03 * 255)**2
-    img1 = prediction.astype(np.float64)
-    img2 = target.astype(np.float64)
-    kernel = cv2.getGaussianKernel(11, 1.5)
-    window = np.outer(kernel, kernel.transpose())
-    mu1 = cv2.filter2D(img1, -1, window)[5:-5, 5:-5]  # valid
-    mu2 = cv2.filter2D(img2, -1, window)[5:-5, 5:-5]
-    mu1_sq = mu1**2
-    mu2_sq = mu2**2
-    mu1_mu2 = mu1 * mu2
-    sigma1_sq = cv2.filter2D(img1**2, -1, window)[5:-5, 5:-5] - mu1_sq
-    sigma2_sq = cv2.filter2D(img2**2, -1, window)[5:-5, 5:-5] - mu2_sq
-    sigma12 = cv2.filter2D(img1 * img2, -1, window)[5:-5, 5:-5] - mu1_mu2
-    ssim_map = ((2 * mu1_mu2 + C1) *
-                (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) *
-                                       (sigma1_sq + sigma2_sq + C2))
-    return ssim_map.mean()
-
-
-def calculate_ssim(target, ref):
-    '''
-    calculate SSIM
-    the same outputs as MATLAB's
-    img1, img2: [0, 255]
-    '''
-    img1 = np.array(target, dtype=np.float64)
-    img2 = np.array(ref, dtype=np.float64)
-    if not img1.shape == img2.shape:
-        raise ValueError('Input images must have the same dimensions.')
-    if img1.ndim == 2:
-        return ssim(img1, img2)
-    elif img1.ndim == 3:
-        if img1.shape[2] == 3:
-            ssims = []
-            for i in range(3):
-                ssims.append(ssim(img1[:, :, i], img2[:, :, i]))
-            return np.array(ssims).mean()
-        elif img1.shape[2] == 1:
-            return ssim(np.squeeze(img1), np.squeeze(img2))
-    else:
-        raise ValueError('Wrong input image dimensions.')
-
-
-def calculate_psnr(target, ref):
-    img1 = np.array(target, dtype=np.float32)
-    img2 = np.array(ref, dtype=np.float32)
-    diff = img1 - img2
-    psnr = 10.0 * np.log10(255.0 * 255.0 / np.mean(np.square(diff)))
-    return psnr
-
-
 # Training Set
 TrainingDataset = DataLoader_Imagenet_val(opt.data_dir, patch=opt.patchsize)
 TrainingLoader = DataLoader(dataset=TrainingDataset,
@@ -355,7 +268,7 @@ for epoch in range(1, opt.n_epoch + 1):
         loss_all.backward()
         optimizer.step()
         network.clear_gradients()
-        if iteration % 100 == 0:
+        if iteration % opt.log_iters == 0:
             print(
                 '{:04d} {:05d} Loss1={:.6f}, Lambda={}, Loss2={:.6f}, Loss_Full={:.6f}, Time={:.4f}'
                 .format(epoch, iteration, np.mean(loss1.item()), Lambda,
