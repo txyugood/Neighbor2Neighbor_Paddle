@@ -35,14 +35,10 @@ def parse_args():
 
     # general params
     parser = argparse.ArgumentParser("PaddleVideo Inference model script")
-    parser.add_argument('-c',
-                        '--config',
-                        type=str,
-                        default='configs/example.yaml',
-                        help='config file path')
     parser.add_argument("-i", "--input_file", type=str, help="input file path")
     parser.add_argument("--model_file", type=str)
     parser.add_argument("--params_file", type=str)
+    parser.add_argument("--save_dir", type=str, default="output/inference_img")
 
     # params for predict
     parser.add_argument("-b", "--batch_size", type=int, default=1)
@@ -114,7 +110,7 @@ def parse_file_paths(input_path: str) -> list:
     return files
 
 
-def postprocess(input_file, output, print_output=True):
+def postprocess(input_file,input_file_names, output,save_dir, print_output=True):
     """
     output: list
     """
@@ -122,6 +118,11 @@ def postprocess(input_file, output, print_output=True):
     prediction = np.clip(prediction, 0, 1)
     pred255 = np.clip(prediction * 255.0 + 0.5, 0,
                       255).astype(np.uint8)
+    for i in range(pred255.shape[0]):
+        pred255_im = Image.fromarray(pred255[i], "RGB")
+        input_file_name = input_file_names[i]
+        os.makedirs(save_dir, exist_ok=True)
+        pred255_im.save(os.path.join(save_dir, input_file_name + "_denoise.png"))
 
     origin = np.transpose(input_file[0], [0, 2, 3, 1])
     origin = np.clip(origin, 0, 1)
@@ -199,6 +200,7 @@ def main():
         # Pre process batched input
         batched_inputs = [files[st_idx:ed_idx]]
         imgs = []
+        input_file_names = []
         for inp in batched_inputs[0]:
             img = Image.open(inp)
             img = np.array(img)
@@ -217,6 +219,7 @@ def main():
             noisy_im = noisy_im[np.newaxis, :,:,:]
 
             imgs.append(noisy_im)
+            input_file_names.append(inp.split('/')[-1].split('.')[0])
         imgs = np.concatenate(imgs)
         batched_inputs = [imgs]
         # get pre process time cost
@@ -236,7 +239,7 @@ def main():
         if args.enable_benchmark:
             autolog.times.stamp()
 
-        postprocess(batched_inputs, batched_outputs, not args.enable_benchmark)
+        postprocess(batched_inputs, input_file_names,batched_outputs, args.save_dir, not args.enable_benchmark)
 
         # get post process time cost
         if args.enable_benchmark:

@@ -49,3 +49,4 @@ inference:infer.py
 null:null
 --enable_benchmark:True
 --params_file:./test_tipc/output/model.pdiparams
+--save_dir: ./test_tipc/output/inference_img/

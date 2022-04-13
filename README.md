@@ -96,6 +96,109 @@ There are 50/50 variables loaded into UNet.
 [EVAL] BSD300: psnr:30.910791861936413 ssim:0.8766264295802032
 ```
 
+### 单张图片预测
+本项目提供了单张图片的预测脚本，可生成降噪图片。使用方法如下：
+```shell
+python predict.py --image_path demo/42012_noise.png --model_path best_model.pdparams --save_dir ./demo/
+```
+
+参数说明：
+
+image_path:需要预测的图片
+
+model_path: 模型路径
+
+save_dir: 输出图片保存路径
+
+
+预测样例:
+
+
+ <center>
+    <img style="border-radius: 0.3125em;
+    box-shadow: 0 2px 4px 0 rgba(34,36,38,.12),0 2px 10px 0 rgba(34,36,38,.08);" 
+    src=demo/42012.png width = "30%" alt=""/>
+    <img style="border-radius: 0.3125em;
+    box-shadow: 0 2px 4px 0 rgba(34,36,38,.12),0 2px 10px 0 rgba(34,36,38,.08);" 
+    src=demo/42012_noise.png width = "30%" alt=""/>
+        <img style="border-radius: 0.3125em;
+    box-shadow: 0 2px 4px 0 rgba(34,36,38,.12),0 2px 10px 0 rgba(34,36,38,.08);" 
+    src=demo/42012_noise_denoise.png width = "30%" alt=""/>
+    <br>
+    <div style="color:orange; border-bottom: 1px solid #d9d9d9;
+    display: inline-block;
+    color: #999;
+    padding: 2px;">
+      从左到右分别是clear、nosie、denoise
+  	</div>
+</center>
+
+<center>
+    <img style="border-radius: 0.3125em;
+    box-shadow: 0 2px 4px 0 rgba(34,36,38,.12),0 2px 10px 0 rgba(34,36,38,.08);" 
+    src=demo/43074.png width = "30%" alt=""/>
+    <img style="border-radius: 0.3125em;
+    box-shadow: 0 2px 4px 0 rgba(34,36,38,.12),0 2px 10px 0 rgba(34,36,38,.08);" 
+    src=demo/43074_noise.png width = "30%" alt=""/>
+        <img style="border-radius: 0.3125em;
+    box-shadow: 0 2px 4px 0 rgba(34,36,38,.12),0 2px 10px 0 rgba(34,36,38,.08);" 
+    src=demo/43074_noise_denoise.png width = "30%" alt=""/>
+    <br>
+    <div style="color:orange; border-bottom: 1px solid #d9d9d9;
+    display: inline-block;
+    color: #999;
+    padding: 2px;">
+      从左到右分别是clear、nosie、denoise
+  	</div>
+</center>
+
+
+
+### 模型导出
+模型导出可执行以下命令：
+
+```shell
+python export_model.py --model_path best_model.pdparams --save_dir ./output/
+```
+
+参数说明：
+
+model_path: 模型路径
+
+save_dir: 输出图片保存路径
+
+### Inference推理
+
+可使用以下命令进行模型推理。该脚本依赖auto_log, 请参考下面TIPC部分先安装auto_log。infer命令运行如下：
+
+```shell
+python infer.py
+--use_gpu=False --enable_mkldnn=False --cpu_threads=2
+--model_file=output/model.pdmodel --batch_size=2 --input_file=validation/BSD300/test --enable_benchmark=True --precision=fp32 --params_file=output/model.pdiparams --save_dir output/inference_img
+```
+
+参数说明:
+
+use_gpu:是否使用GPU
+
+enable_mkldnn:是否使用mkldnn
+
+cpu_threads: cpu线程数
+ 
+model_file: 模型路径
+
+batch_size: 批次大小
+
+input_file: 输入文件路径
+
+enable_benchmark: 是否开启benchmark
+
+precision: 运算精度
+
+params_file: 模型权重文件，由export_model.py脚本导出。
+
+save_dir: 保存推理预测图片的路径
+
 
 ### TIPC基础链条测试
 
@@ -104,10 +207,11 @@ There are 50/50 variables loaded into UNet.
 auto_log的详细介绍参考[https://github.com/LDOUBLEV/AutoLog](https://github.com/LDOUBLEV/AutoLog)。
 
 ```shell
-git clone https://github.com/LDOUBLEV/AutoLog
+git clone https://gitee.com/Double_V/AutoLog
+cd AutoLog/
 pip3 install -r requirements.txt
 python3 setup.py bdist_wheel
-pip3 install ./dist/auto_log-1.0.0-py3-none-any.whl
+pip3 install ./dist/auto_log-1.2.0-py3-none-any.whl
 ```
 
 
